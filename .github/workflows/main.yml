@@ -28,7 +28,7 @@ jobs:
       uses: browser-actions/setup-chrome@v1
 
     - name: Run scraper
-      run: python scrape_wowhead.py
+      run: python scrape_wowhead.py urls.txt out.json
       
     - name: Show recipes.json
       run: cat recipes.json
@@ -37,8 +37,7 @@ jobs:
       run: |
         git config user.name "github-actions"
         git config user.email "github-actions@github.com"
-        git add recipes.json
-        git add failed_urls.txt
+        git add out.json
         git commit -m "Update recipes.json from scraper" || echo "No changes to commit"
         git push
       env:
