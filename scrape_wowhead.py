@@ -25,7 +25,6 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-
 @dataclass
 class RecipeData:
     recipe_id: int
@@ -40,7 +39,6 @@ class RecipeData:
     url: str
     scraped_at: str
     difficulties: List[int]
-
 
 class WowheadScraper:
     def __init__(self, headless: bool = True, timeout: int = 15):
@@ -149,9 +147,7 @@ class WowheadScraper:
         return "0.0.0"
 
     def _extract_difficulties(self, soup: BeautifulSoup) -> List[int]:
-        difficulty_divs = soup.find_all(
-            "div", attrs={"data-markup-content-target": "1"}
-        )
+        difficulty_divs = soup.find_all("div", attrs={"data-markup-content-target": "1"})
         for div in difficulty_divs:
             text = div.get_text(strip=True)
             if text.startswith("Difficulty:"):
@@ -163,9 +159,7 @@ class WowheadScraper:
                             difficulty = int(span.get_text(strip=True))
                             difficulties.append(difficulty)
                         except ValueError:
-                            logger.warning(
-                                f"Invalid difficulty value in span {class_name}: {span.get_text(strip=True)}"
-                            )
+                            logger.warning(f"Invalid difficulty value in span {class_name}: {span.get_text(strip=True)}")
                 return difficulties
         return []
 
@@ -224,6 +218,8 @@ class WowheadScraper:
                 if quantity_match:
                     result_quantity = int(quantity_match.group(1))
                     return result_item_id, result_quantity
+        tooltip_text = tooltip_div.get_text(strip=True)
+        quantity_match = re.search(r"Elemental Fire\((\d+)\)", tooltip_text)
         result_quantity = int(quantity_match.group(1)) if quantity_match else 1
         return result_item_id, result_quantity
 
@@ -244,9 +240,7 @@ class WowheadScraper:
             result_item_id, result_quantity = self._extract_result_item(soup, recipe_id)
             if skill_level == 0 and difficulties:
                 skill_level = difficulties[0]
-                logger.info(
-                    f"Using first difficulty {skill_level} as skill_level for recipe {recipe_id}"
-                )
+                logger.info(f"Using first difficulty {skill_level} as skill_level for recipe {recipe_id}")
             recipe_data = RecipeData(
                 recipe_id=recipe_id,
                 name=name,
@@ -281,7 +275,7 @@ class WowheadScraper:
         with open(input_path, "r") as f:
             urls = [line.strip() for line in f if line.strip()]
         logger.info(f"Found {len(urls)} URLs to scrape")
-        stats = {"total_urls": len(urls), "successful": 0, "failed": 0, "recipes": []}
+        stats = {"total_urls": len(urls), "successful": 0, "failed": 0, "recipes": [], "failed_urls": []}
         for i, url in enumerate(urls, 1):
             logger.info(f"Processing {i}/{len(urls)}: {url}")
             recipe_data = None
@@ -300,18 +294,19 @@ class WowheadScraper:
                 stats["successful"] += 1
             else:
                 stats["failed"] += 1
+                stats["failed_urls"].append(url)
                 logger.error(f"Failed to scrape after {max_retries} attempts: {url}")
         with open(output_path, "w") as f:
             json.dump(stats, f, indent=2)
-        logger.info(
-            f"Scraping completed. Success: {stats['successful']}, Failed: {stats['failed']}"
-        )
+        failed_urls_path = output_path.with_suffix(".failed.txt")
+        with open(failed_urls_path, "w") as f:
+            for url in stats["failed_urls"]:
+                f.write(f"{url}\n")
+        logger.info(f"Scraping completed. Success: {stats['successful']}, Failed: {stats['failed']}, Failed URLs saved to {failed_urls_path}")
         return stats
-
 
 def main():
     import argparse
-
     parser = argparse.ArgumentParser(
         description="Scrape WoW Classic SoD recipes from Wowhead"
     )
@@ -345,13 +340,13 @@ def main():
             print(f"Total URLs: {stats['total_urls']}")
             print(f"Successful: {stats['successful']}")
             print(f"Failed: {stats['failed']}")
+            print(f"Failed URLs saved to: {args.output_file}.failed.txt")
     except KeyboardInterrupt:
         logger.info("Scraping interrupted by user")
     except Exception as e:
         logger.error(f"Scraping failed: {e}")
         return 1
     return 0
-
 
 if __name__ == "__main__":
     exit(main())
